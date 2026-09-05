@@ -1,10 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router-dom";
+import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/reset-password")({
-  head: () => ({
+const HEAD = {
     meta: [
       { title: "Reset password — Video Speed Reader" },
       { name: "description", content: "Reset your Video Speed Reader password." },
@@ -12,11 +12,10 @@ export const Route = createFileRoute("/reset-password")({
       { property: "og:description", content: "Reset your Video Speed Reader password." },
       { property: "og:type", content: "website" },
     ],
-  }),
-  component: ResetPasswordPage,
-});
+};
 
-function ResetPasswordPage() {
+export default function ResetPasswordPage() {
+  useDocumentHead(HEAD);
   const navigate = useNavigate();
   const [isRecovery, setIsRecovery] = useState(false);
   const [email, setEmail] = useState("");
@@ -57,7 +56,7 @@ function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       toast.success("密碼已更新", { description: "Your password has been updated." });
-      navigate({ to: "/app" });
+      navigate("/app");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -121,7 +120,7 @@ function ResetPasswordPage() {
         </div>
 
         <p className="mt-6 text-center text-sm">
-          <Link to="/auth" className="text-ink/55 hover:text-chrome-deep">
+          <Link to="/sign-in" className="text-ink/55 hover:text-chrome-deep">
             ← 返回登入 / Back to sign in
           </Link>
         </p>

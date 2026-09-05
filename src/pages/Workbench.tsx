@@ -1,19 +1,17 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "react-router-dom";
+import { useDocumentHead } from "@/lib/use-document-head";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/_authenticated/app")({
-  head: () => ({
+const HEAD = {
     meta: [
       { title: "工作台 — Video Speed Reader" },
       { name: "description", content: "Upload videos and manage your transcripts." },
       { name: "robots", content: "noindex" },
     ],
-  }),
-  component: AppShell,
-});
+};
 
 type Profile = {
   display_name: string | null;
@@ -59,7 +57,8 @@ function StatusBadge({ t }: { t: Transcript }) {
   );
 }
 
-function AppShell() {
+export default function AppShell() {
+  useDocumentHead(HEAD);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -99,7 +98,7 @@ function AppShell() {
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate("/sign-in", { replace: true });
   }
 
   async function handleFiles(files: FileList | null) {

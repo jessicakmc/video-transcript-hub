@@ -1,11 +1,12 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router-dom";
+import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
-export const Route = createFileRoute("/auth")({
-  head: () => ({
+const HEAD = {
+  signin: {
     meta: [
       { title: "Sign in — Video Speed Reader" },
       { name: "description", content: "Sign in to Video Speed Reader to start transcribing." },
@@ -13,13 +14,32 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "Sign in to Video Speed Reader to start transcribing." },
       { property: "og:type", content: "website" },
     ],
-  }),
-  component: AuthPage,
-});
+  },
+  signup: {
+    meta: [
+      { title: "Sign up — Video Speed Reader" },
+      { name: "description", content: "Create a Video Speed Reader account to start transcribing." },
+      { property: "og:title", content: "Sign up — Video Speed Reader" },
+      { property: "og:description", content: "Create a Video Speed Reader account to start transcribing." },
+      { property: "og:type", content: "website" },
+    ],
+  },
+} as const;
 
-function AuthPage() {
+export default function AuthPage({ initialMode = "signin" }: { initialMode?: "signin" | "signup" }) {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+  useDocumentHead(HEAD[mode]);
+
+  // Keep the tab state and the URL in step: /sign-in and /sign-up are real routes.
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  function selectMode(next: "signin" | "signup") {
+    setMode(next);
+    navigate(next === "signin" ? "/sign-in" : "/sign-up", { replace: true });
+  }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -27,7 +47,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/app", replace: true });
+      if (data.session) navigate("/app", { replace: true });
     });
   }, [navigate]);
 
@@ -38,7 +58,7 @@ function AuthPage() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/app" });
+        navigate("/app");
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -53,9 +73,9 @@ function AuthPage() {
           toast.success("確認信已寄出", {
             description: "Check your email to confirm your account, then sign in.",
           });
-          setMode("signin");
+          selectMode("signin");
         } else {
-          navigate({ to: "/app" });
+          navigate("/app");
         }
       }
     } catch (err) {
@@ -74,7 +94,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/app" });
+    navigate("/app");
   }
 
   return (
@@ -99,7 +119,7 @@ function AuthPage() {
         <div className="rounded-[20px] bg-gradient-to-b from-white to-paper p-6 shadow-[0_20px_60px_-30px_rgba(201,125,106,0.3)] ring-1 ring-ink/10">
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-[10px] bg-ink/[0.04] p-1 text-sm font-medium">
             <button
-              onClick={() => setMode("signin")}
+              onClick={() => selectMode("signin")}
               className={`rounded-[8px] py-1.5 transition-colors ${
                 mode === "signin" ? "bg-white text-chrome-deep shadow-sm ring-1 ring-ink/10" : "text-ink/55"
               }`}
@@ -107,7 +127,7 @@ function AuthPage() {
               登入 Sign in
             </button>
             <button
-              onClick={() => setMode("signup")}
+              onClick={() => selectMode("signup")}
               className={`rounded-[8px] py-1.5 transition-colors ${
                 mode === "signup" ? "bg-white text-chrome-deep shadow-sm ring-1 ring-ink/10" : "text-ink/55"
               }`}

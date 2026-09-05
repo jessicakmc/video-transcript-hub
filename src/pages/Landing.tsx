@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
+import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
+const HEAD = {
     meta: [
       { title: "Video Speed Reader — 上傳影片，三分鐘內拿到逐字稿" },
       {
@@ -19,9 +19,7 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-  }),
-  component: LandingPage,
-});
+};
 
 const WAVEFORM_BARS = [30, 55, 78, 48, 90, 62, 84, 100, 70, 40, 22, 14];
 const BAR_TONES = [
@@ -68,7 +66,7 @@ function SignInCta() {
 
   return (
     <Link
-      to={signedIn ? "/app" : "/auth"}
+      to={signedIn ? "/app" : "/sign-in"}
       className="btn-chrome py-2 pr-3 pl-2 text-sm font-medium leading-none ring-1 ring-chrome-deep/30 transition-shadow"
     >
       {signedIn ? "開啟工作台 / Open app" : "Sign in / 登入"}
@@ -76,7 +74,9 @@ function SignInCta() {
   );
 }
 
-function LandingPage() {
+export default function LandingPage() {
+  useDocumentHead(HEAD);
+
   return (
     <div className="min-h-screen bg-paper font-sans text-ink antialiased">
       {/* Header */}
@@ -126,7 +126,7 @@ function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                to="/auth"
+                to="/sign-in"
                 className="btn-chrome py-2 pr-3 pl-2 text-sm font-medium leading-none ring-1 ring-chrome-deep/40 transition-shadow"
               >
                 Sign in / 登入
@@ -285,7 +285,7 @@ function LandingPage() {
                 每月 30 分鐘免費額度，無需信用卡。Start transcribing today.
               </p>
               <Link
-                to="/auth"
+                to="/sign-in"
                 className="mt-7 inline-block rounded-[10px] bg-white px-3 py-2 text-sm font-medium leading-none text-chrome-deep shadow-[0_3px_0_rgba(0,0,0,0.15)] transition-shadow hover:shadow-[0_4px_0_rgba(0,0,0,0.2)]"
               >
                 Sign in / 登入

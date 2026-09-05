@@ -28,3 +28,22 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Architecture
+
+A plain **Vite + React** single-page app — no SSR, no server runtime, no Cloudflare/Wrangler.
+
+- `vite build` emits a fully static bundle to `dist/`.
+- Client-side routing uses **React Router** (`src/App.tsx`): `/`, `/sign-in`, `/sign-up`, `/reset-password`, `/app`. The legacy `/auth` path redirects to `/sign-in`.
+- `/app` is guarded in the browser by `RequireAuth`, which checks the Supabase session and redirects anonymous visitors to `/sign-in`.
+- Per-page `<title>`/`<meta>` are applied client-side by `src/lib/use-document-head.ts`.
+
+## Deploying to Vercel
+
+`vercel.json` sets the framework to Vite, the output directory to `dist`, and rewrites every path to `/index.html` so deep links such as `/app` are resolved by the client router instead of 404-ing.
+
+Set these environment variables in the Vercel project (they are inlined at build time):
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PROJECT_ID`
