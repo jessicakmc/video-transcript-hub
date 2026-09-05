@@ -10,7 +10,6 @@ import {
 } from "react-router-dom";
 import { Toaster } from "sonner";
 
-import { reportLovableError } from "./lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/Auth";
 import LandingPage from "./pages/Landing";
@@ -42,10 +41,6 @@ function NotFoundComponent() {
 }
 
 function ErrorScreen({ error, reset }: { error: Error; reset: () => void }) {
-  useEffect(() => {
-    reportLovableError(error, { boundary: "react_root_error_boundary" });
-  }, [error]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">

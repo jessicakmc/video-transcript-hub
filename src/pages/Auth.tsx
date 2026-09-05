@@ -3,7 +3,6 @@ import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 
 const HEAD = {
   signin: {
@@ -86,15 +85,15 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
   }
 
   async function handleGoogle() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    // Supabase redirects the browser to Google and back to redirectTo, where
+    // detectSessionInUrl picks the session up — nothing after this runs on success.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/app` },
     });
-    if (result.error) {
-      toast.error("Google 登入失敗", { description: result.error.message });
-      return;
+    if (error) {
+      toast.error("Google 登入失敗", { description: error.message });
     }
-    if (result.redirected) return;
-    navigate("/app");
   }
 
   return (

@@ -8,16 +8,6 @@ A public landing page (/) with:
 
 Hero section: product name "Video Speed Reader" prominently displayed, value prop "上傳影片，三分鐘內拿到逐字稿。" (English subtitle: "Upload your video, get a clean transcript in three minutes."), and a primary CTA button labeled "Sign in / 登入" in the top-right header
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/af966250-3629-4e3d-ad23-daa41022f6b8).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
 ## Development
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
@@ -38,12 +28,24 @@ A plain **Vite + React** single-page app — no SSR, no server runtime, no Cloud
 - `/app` is guarded in the browser by `RequireAuth`, which checks the Supabase session and redirects anonymous visitors to `/sign-in`.
 - Per-page `<title>`/`<meta>` are applied client-side by `src/lib/use-document-head.ts`.
 
+## Backend
+
+Supabase project `bevfeigrtnvmnddfjjti`, accessed only from the browser through
+`src/integrations/supabase/client.ts`. Row Level Security keeps each user to
+their own `profiles` and `transcripts` rows; the schema lives in
+`supabase/migrations/`.
+
+Auth: Supabase email/password plus Google OAuth via `supabase.auth.signInWithOAuth`.
+For Google sign-in to work on a deployment, enable the Google provider in the
+Supabase dashboard and add the deployment origin (plus `/app`) to the project's
+redirect allow-list.
+
 ## Deploying to Vercel
 
 `vercel.json` sets the framework to Vite, the output directory to `dist`, and rewrites every path to `/index.html` so deep links such as `/app` are resolved by the client router instead of 404-ing.
 
 Set these environment variables in the Vercel project (they are inlined at build time):
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_SUPABASE_PROJECT_ID`
+- `VITE_SUPABASE_URL` — `https://bevfeigrtnvmnddfjjti.supabase.co`
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — the project's `sb_publishable_*` key
+- `VITE_SUPABASE_PROJECT_ID` — `bevfeigrtnvmnddfjjti`
