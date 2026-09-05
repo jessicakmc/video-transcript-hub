@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          monthly_quota_minutes: number
+          updated_at: string
+          usage_minutes: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          monthly_quota_minutes?: number
+          updated_at?: string
+          usage_minutes?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          monthly_quota_minutes?: number
+          updated_at?: string
+          usage_minutes?: number
+        }
+        Relationships: []
+      }
+      transcripts: {
+        Row: {
+          content: string | null
+          created_at: string
+          duration_seconds: number | null
+          file_name: string | null
+          id: string
+          language: string | null
+          progress: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_name?: string | null
+          id?: string
+          language?: string | null
+          progress?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_name?: string | null
+          id?: string
+          language?: string | null
+          progress?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
