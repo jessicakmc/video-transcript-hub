@@ -1,4 +1,7 @@
-import { Link, useNavigate } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -16,7 +19,7 @@ const HEAD = {
 
 export default function ResetPasswordPage() {
   useDocumentHead(HEAD);
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isRecovery, setIsRecovery] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,7 +59,7 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       toast.success("密碼已更新", { description: "Your password has been updated." });
-      navigate("/app");
+      router.push("/app");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -120,7 +123,7 @@ export default function ResetPasswordPage() {
         </div>
 
         <p className="mt-6 text-center text-sm">
-          <Link to="/sign-in" className="text-ink/55 hover:text-chrome-deep">
+          <Link href="/sign-in" className="text-ink/55 hover:text-chrome-deep">
             ← 返回登入 / Back to sign in
           </Link>
         </p>

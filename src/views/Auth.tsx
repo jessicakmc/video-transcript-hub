@@ -1,4 +1,7 @@
-import { Link, useNavigate } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -26,7 +29,7 @@ const HEAD = {
 } as const;
 
 export default function AuthPage({ initialMode = "signin" }: { initialMode?: "signin" | "signup" }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   useDocumentHead(HEAD[mode]);
 
@@ -37,7 +40,7 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
 
   function selectMode(next: "signin" | "signup") {
     setMode(next);
-    navigate(next === "signin" ? "/sign-in" : "/sign-up", { replace: true });
+    router.replace(next === "signin" ? "/sign-in" : "/sign-up");
   }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,9 +49,9 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate("/app", { replace: true });
+      if (data.session) router.replace("/app");
     });
-  }, [navigate]);
+  }, [router]);
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +60,7 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate("/app");
+        router.push("/app");
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -74,7 +77,7 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
           });
           selectMode("signin");
         } else {
-          navigate("/app");
+          router.push("/app");
         }
       }
     } catch (err) {
@@ -102,7 +105,7 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
       <div className="pointer-events-none absolute -top-20 -right-40 size-[420px] rounded-full bg-gradient-to-br from-blush/20 via-peach-light/20 to-transparent blur-3xl" />
 
       <div className="relative w-full max-w-sm">
-        <Link to="/" className="mb-8 flex items-center justify-center gap-3">
+        <Link href="/" className="mb-8 flex items-center justify-center gap-3">
           <div className="relative grid size-9 place-items-center overflow-hidden rounded-[12px] bg-gradient-to-b from-chrome to-chrome-deep ring-1 ring-chrome-deep/40">
             <span className="spool absolute inset-0 opacity-40" />
             <span className="gloss absolute inset-0" />
@@ -174,7 +177,7 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
 
           {mode === "signin" && (
             <div className="mt-3 text-center">
-              <Link to="/reset-password" className="text-xs text-ink/50 hover:text-chrome-deep">
+              <Link href="/reset-password" className="text-xs text-ink/50 hover:text-chrome-deep">
                 忘記密碼？ Forgot password
               </Link>
             </div>

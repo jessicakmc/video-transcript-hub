@@ -1,4 +1,6 @@
-import { useNavigate } from "react-router-dom";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { useDocumentHead } from "@/lib/use-document-head";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -59,7 +61,7 @@ function StatusBadge({ t }: { t: Transcript }) {
 
 export default function AppShell() {
   useDocumentHead(HEAD);
-  const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -98,7 +100,7 @@ export default function AppShell() {
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate("/sign-in", { replace: true });
+    router.replace("/sign-in");
   }
 
   async function handleFiles(files: FileList | null) {

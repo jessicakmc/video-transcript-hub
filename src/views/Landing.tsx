@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
 import { useDocumentHead } from "@/lib/use-document-head";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,7 +68,7 @@ function SignInCta() {
 
   return (
     <Link
-      to={signedIn ? "/app" : "/sign-in"}
+      href={signedIn ? "/app" : "/sign-in"}
       className="btn-chrome py-2 pr-3 pl-2 text-sm font-medium leading-none ring-1 ring-chrome-deep/30 transition-shadow"
     >
       {signedIn ? "開啟工作台 / Open app" : "Sign in / 登入"}
@@ -126,7 +128,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                to="/sign-in"
+                href="/sign-in"
                 className="btn-chrome py-2 pr-3 pl-2 text-sm font-medium leading-none ring-1 ring-chrome-deep/40 transition-shadow"
               >
                 Sign in / 登入
@@ -285,7 +287,7 @@ export default function LandingPage() {
                 每月 30 分鐘免費額度，無需信用卡。Start transcribing today.
               </p>
               <Link
-                to="/sign-in"
+                href="/sign-in"
                 className="mt-7 inline-block rounded-[10px] bg-white px-3 py-2 text-sm font-medium leading-none text-chrome-deep shadow-[0_3px_0_rgba(0,0,0,0.15)] transition-shadow hover:shadow-[0_4px_0_rgba(0,0,0,0.2)]"
               >
                 Sign in / 登入
