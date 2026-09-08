@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDocumentHead } from "@/lib/use-document-head";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import JobStatusBadge, {
+  TranscriptCell,
+  type JobStatus,
+} from "@/components/job-status-badge";
 
 const HEAD = {
     meta: [
       { title: "工作台 — Video Speed Reader" },
-      { name: "description", content: "Upload videos and manage your transcripts." },
+      { name: "description", content: "Submit a video URL and manage your transcripts." },
       { name: "robots", content: "noindex" },
     ],
 };
@@ -22,50 +24,28 @@ type Profile = {
   monthly_quota_minutes: number;
 };
 
-type Transcript = {
+type Job = {
   id: string;
-  title: string;
-  file_name: string | null;
-  duration_seconds: number | null;
-  status: "queued" | "processing" | "ready";
-  progress: number;
+  created_at: string;
+  video_source_url: string;
+  topic: string | null;
+  status: JobStatus;
 };
 
-function formatDuration(seconds: number | null) {
-  if (seconds == null) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function StatusBadge({ t }: { t: Transcript }) {
-  if (t.status === "ready") {
-    return (
-      <span className="shrink-0 rounded-full bg-chrome/20 px-2.5 py-1 text-[11px] font-medium text-chrome-deep">
-        完成 Ready
-      </span>
-    );
-  }
-  if (t.status === "processing") {
-    return (
-      <span className="shrink-0 rounded-full bg-chrome-deep px-2.5 py-1 text-[11px] font-medium text-primary-foreground">
-        {t.progress}%
-      </span>
-    );
-  }
-  return (
-    <span className="shrink-0 rounded-full bg-ink/[0.06] px-2.5 py-1 text-[11px] font-medium text-ink/55">
-      佇列中 Queued
-    </span>
-  );
+function relativeTime(iso: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
 
 export default function AppShell() {
   useDocumentHead(HEAD);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
 
   const { data: user } = useQuery({
     queryKey: ["auth-user"],
@@ -85,15 +65,22 @@ export default function AppShell() {
     },
   });
 
-  const { data: transcripts } = useQuery({
-    queryKey: ["transcripts", user?.id],
+  // Real M1 jobs. Anything still in flight is re-polled every 5s so the badge
+  // walks pending -> downloading -> transcribe -> done without a manual refresh.
+  const { data: jobs } = useQuery({
+    queryKey: ["jobs", user?.id],
     enabled: Boolean(user?.id),
+    refetchInterval: (query) => {
+      const rows = (query.state.data ?? []) as Job[];
+      return rows.some((j) => j.status !== "done") ? 5000 : false;
+    },
     queryFn: async () => {
       const { data } = await supabase
-        .from("transcripts")
-        .select("id, title, file_name, duration_seconds, status, progress")
-        .order("created_at", { ascending: false });
-      return (data ?? []) as Transcript[];
+        .from("jobs")
+        .select("id, created_at, video_source_url, topic, status")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return (data ?? []) as Job[];
     },
   });
 
@@ -102,29 +89,6 @@ export default function AppShell() {
     queryClient.clear();
     await supabase.auth.signOut();
     router.replace("/sign-in");
-  }
-
-  async function handleFiles(files: FileList | null) {
-    if (!files?.length || !user) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        const { error } = await supabase.from("transcripts").insert({
-          user_id: user.id,
-          title: file.name.replace(/\.[^.]+$/, ""),
-          file_name: file.name,
-          status: "queued",
-          progress: 0,
-        });
-        if (error) throw error;
-      }
-      toast.success("已加入佇列", { description: `${files.length} 個檔案等待轉錄。` });
-      queryClient.invalidateQueries({ queryKey: ["transcripts"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "上傳失敗");
-    } finally {
-      setUploading(false);
-    }
   }
 
   const usagePct = profile
@@ -146,9 +110,9 @@ export default function AppShell() {
         </div>
         <nav className="space-y-1 p-3 text-sm font-medium">
           <Link href="/upload" className="flex items-center gap-2.5 rounded-lg bg-chrome/15 px-3 py-2 text-chrome-deep">
-            <span className="size-4 shrink-0 rounded bg-chrome-deep/30" /> 上傳 / Upload
+            <span className="size-4 shrink-0 rounded bg-chrome-deep/30" /> 送出影片 / Transcribe
           </Link>
-          <a href="#transcripts" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-ink/65 transition-colors hover:bg-chrome/10">
+          <a href="#jobs" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-ink/65 transition-colors hover:bg-chrome/10">
             <span className="size-4 shrink-0 rounded bg-ink/15" /> 逐字稿 / Transcripts
           </a>
           <button
@@ -179,7 +143,7 @@ export default function AppShell() {
       {/* Main */}
       <main className="min-w-0 flex-1">
         <div className="flex h-16 items-center justify-between border-b border-ink/10 bg-white/40 px-6">
-          <h1 className="font-display text-base font-semibold tracking-tight">上傳影片 / Upload video</h1>
+          <h1 className="font-display text-base font-semibold tracking-tight">工作台 / Workbench</h1>
           <div className="flex items-center gap-3">
             <span className="hidden font-mono text-[11px] text-ink/50 sm:block">
               {profile?.display_name ?? user?.email}
@@ -190,85 +154,76 @@ export default function AppShell() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          {/* Dropzone */}
-          <div className="p-6" id="upload">
-            <button
-              onClick={() => fileInput.current?.click()}
-              disabled={uploading}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleFiles(e.dataTransfer.files);
-              }}
-              className="grid w-full place-items-center rounded-[14px] border-2 border-dashed border-chrome/50 bg-chrome/5 p-10 text-center transition-colors hover:bg-chrome/10 disabled:opacity-60"
-            >
-              <span className="grid size-14 place-items-center rounded-full bg-gradient-to-b from-white to-chrome/10 ring-1 ring-chrome/40">
-                <span className="font-display text-2xl font-semibold text-chrome-deep">↑</span>
-              </span>
-              <span className="mt-4 font-display text-base font-semibold">
-                {uploading ? "加入中…" : "拖入影片或點擊上傳"}
-              </span>
-              <span className="mt-1 text-sm text-ink/55">Drop a video or click to browse</span>
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="video/*,audio/*"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-            <div className="mt-4 flex items-center justify-between rounded-lg bg-white/60 px-4 py-3 ring-1 ring-ink/10">
-              <span className="text-sm font-medium">平均時間 / Avg. time</span>
-              <span className="font-mono text-sm text-chrome-deep">02:47</span>
-            </div>
-          </div>
+        <div className="mx-auto max-w-3xl px-6 py-6">
+          {/* Primary CTA — the one and only way to start a transcription. */}
+          <Link
+            href="/upload"
+            className="group grid w-full place-items-center rounded-[14px] border-2 border-dashed border-chrome/50 bg-chrome/5 p-10 text-center transition-colors hover:bg-chrome/10"
+          >
+            <span className="grid size-14 place-items-center rounded-full bg-gradient-to-b from-white to-chrome/10 ring-1 ring-chrome/40">
+              <span className="font-display text-2xl font-semibold text-chrome-deep">↗</span>
+            </span>
+            <span className="mt-4 font-display text-base font-semibold">
+              貼上影片連結，開始轉錄
+            </span>
+            <span className="mt-1 text-sm text-ink/55">
+              Paste a video URL and Whisper returns a transcript in a few minutes.
+            </span>
+          </Link>
 
-          {/* Transcript list */}
-          <div className="border-t border-ink/10 p-6 pt-0 lg:border-t-0 lg:border-l lg:pt-6" id="transcripts">
+          <section className="mt-8" id="jobs">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-sm font-semibold tracking-tight">逐字稿 / Transcripts</h2>
-              <span className="font-mono text-[11px] text-ink/45">{transcripts?.length ?? 0} items</span>
+              <h2 className="font-display text-sm font-semibold tracking-tight">
+                逐字稿 / Transcripts
+              </h2>
+              <span className="font-mono text-[11px] text-ink/45">{jobs?.length ?? 0} items</span>
             </div>
-            <div className="space-y-2">
-              {transcripts?.length ? (
-                transcripts.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`rounded-[12px] bg-white/70 p-4 ring-1 ring-ink/10 ${
-                      t.status === "processing" ? "border-l-4 border-chrome-deep" : ""
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-display text-sm font-medium">{t.title}</p>
-                        <p className="mt-0.5 font-mono text-[11px] text-ink/45">
-                          {t.file_name ?? "video"} · {formatDuration(t.duration_seconds)}
-                        </p>
-                      </div>
-                      <StatusBadge t={t} />
-                    </div>
-                    {t.status === "processing" && (
-                      <div className="mt-3 h-1 overflow-hidden rounded-full bg-ink/10">
-                        <span
-                          className="block h-full rounded-full bg-chrome-deep"
-                          style={{ width: `${t.progress}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-[12px] bg-white/70 p-8 text-center ring-1 ring-ink/10">
-                  <p className="font-display text-sm font-medium">還沒有逐字稿</p>
-                  <p className="mt-1 text-sm text-ink/55">
-                    Upload your first video — transcripts appear here.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+
+            {jobs?.length ? (
+              <div className="overflow-x-auto rounded-[12px] bg-white/70 ring-1 ring-ink/10">
+                <table className="w-full min-w-[36rem] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-ink/10 font-mono text-[11px] uppercase tracking-wide text-ink/45">
+                      <th className="px-4 py-3 font-normal">Created</th>
+                      <th className="px-4 py-3 font-normal">Source</th>
+                      <th className="px-4 py-3 font-normal">Status</th>
+                      <th className="px-4 py-3 font-normal">Transcript</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobs.map((job) => (
+                      <tr key={job.id} className="border-b border-ink/5 last:border-b-0">
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-[11px] text-ink/55">
+                          {relativeTime(job.created_at)}
+                        </td>
+                        <td className="min-w-0 px-4 py-3">
+                          {job.topic && (
+                            <p className="truncate font-display text-sm font-medium">{job.topic}</p>
+                          )}
+                          <p className="truncate font-mono text-[11px] text-ink/50">
+                            {job.video_source_url}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <JobStatusBadge status={job.status} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <TranscriptCell id={job.id} status={job.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-[12px] bg-white/70 p-8 text-center ring-1 ring-ink/10">
+                <p className="font-display text-sm font-medium">還沒有逐字稿</p>
+                <p className="mt-1 text-sm text-ink/55">
+                  No transcriptions yet. Paste a video URL above to start your first one.
+                </p>
+              </div>
+            )}
+          </section>
         </div>
       </main>
     </div>

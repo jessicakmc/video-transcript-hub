@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import JobStatusBadge, {
+  TranscriptCell,
+  type JobStatus,
+} from "@/components/job-status-badge";
 import UploadForm from "@/components/upload-form";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,31 +17,8 @@ type JobRow = {
   id: string;
   created_at: string;
   video_source_url: string;
-  status: "pending" | "downloading" | "transcribe" | "done";
+  status: JobStatus;
 };
-
-const STATUS_LABEL: Record<JobRow["status"], string> = {
-  pending: "佇列中 Pending",
-  downloading: "下載中 Downloading",
-  transcribe: "轉錄中 Transcribing",
-  done: "完成 Done",
-};
-
-function StatusBadge({ status }: { status: JobRow["status"] }) {
-  // gray for pending/downloading, blue for transcribe, green for done
-  const tone =
-    status === "done"
-      ? "bg-emerald-500/15 text-emerald-700"
-      : status === "transcribe"
-        ? "bg-sky-500/15 text-sky-700"
-        : "bg-ink/[0.06] text-ink/55";
-
-  return (
-    <span className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${tone}`}>
-      {STATUS_LABEL[status]}
-    </span>
-  );
-}
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -126,20 +107,10 @@ export default async function UploadPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <StatusBadge status={job.status} />
+                        <JobStatusBadge status={job.status} />
                       </td>
                       <td className="px-4 py-3">
-                        {job.status === "done" ? (
-                          <a
-                            href={`/api/jobs/${job.id}/transcript`}
-                            download={`transcript-${job.id.slice(0, 8)}.txt`}
-                            className="inline-flex items-center gap-1.5 font-medium text-chrome-deep transition-colors hover:underline"
-                          >
-                            <span aria-hidden="true">↓</span> .txt
-                          </a>
-                        ) : (
-                          <span className="text-ink/35">—</span>
-                        )}
+                        <TranscriptCell id={job.id} status={job.status} />
                       </td>
                     </tr>
                   ))}
