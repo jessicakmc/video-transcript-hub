@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { validateVideoUrl } from "@/lib/video-url";
+
 const LANGUAGES = [
   { value: "zh", label: "中文 / Chinese" },
   { value: "en", label: "English" },
@@ -24,6 +26,15 @@ export default function UploadForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Catch the YouTube case here so the user finds out immediately rather
+    // than watching a job die in the worker minutes later.
+    const invalid = validateVideoUrl(videoSourceUrl);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/jobs", {
@@ -67,11 +78,12 @@ export default function UploadForm() {
           required
           value={videoSourceUrl}
           onChange={(e) => setVideoSourceUrl(e.target.value)}
-          placeholder="Direct mp4 / mp3 URL (e.g. CloudFront, Vimeo, Internet Archive)"
+          placeholder="https://example.com/talk.mp3"
           className={FIELD}
         />
         <p className="mt-1.5 font-mono text-[11px] text-ink/45">
-          YouTube 網址在 M1 不支援 — cloud IP 會被擋。請用直接的 mp4 / mp3 連結。
+          直接的 mp4 / mp3 連結（CloudFront、S3、Internet Archive、Wikimedia 等）。
+          YouTube 不支援 — 它會封鎖雲端主機的 IP。
         </p>
       </div>
 

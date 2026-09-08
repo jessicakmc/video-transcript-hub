@@ -8,7 +8,9 @@ Manager — the EC2's IAM instance profile grants `secretsmanager:GetSecretValue
 on exactly those three secret names, so no credentials ever live on disk.
 """
 import os
+import sys
 import math
+import traceback
 import subprocess
 import tempfile
 from pathlib import Path
@@ -124,8 +126,7 @@ def transcribe_chunk(chunk_path: Path, language: str) -> str:
         )
 
 
-def main() -> None:
-    job_id = os.environ["JOB_ID"]
+def run(job_id: str) -> None:
     job = get_job(job_id)
     session_id = job["current_session_id"]
 
@@ -149,6 +150,24 @@ def main() -> None:
         update_job(job_id, status="done")
 
     print(f"[{job_id}] done — {len(full_text)} chars", flush=True)
+
+
+def main() -> None:
+    """Wrap run() so a crash lands the job in 'failed' rather than leaving it
+    stuck at whatever status it died in. The traceback stays in this process's
+    stdout, which systemd appends to /var/log/m1-distributor.log."""
+    job_id = os.environ["JOB_ID"]
+    try:
+        run(job_id)
+    except Exception:
+        print(f"[{job_id}] FAILED", flush=True)
+        traceback.print_exc()
+        try:
+            update_job(job_id, status="failed")
+        except Exception:
+            # Losing the status write is not worth masking the original error.
+            traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

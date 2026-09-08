@@ -1,10 +1,11 @@
-export type JobStatus = "pending" | "downloading" | "transcribe" | "done";
+export type JobStatus = "pending" | "downloading" | "transcribe" | "done" | "failed";
 
 const LABEL: Record<JobStatus, string> = {
   pending: "佇列中 Pending",
   downloading: "下載中 Downloading",
   transcribe: "轉錄中 Transcribing",
   done: "完成 Done",
+  failed: "失敗 Failed",
 };
 
 // gray for pending/downloading, blue for transcribe, green for done
@@ -13,6 +14,7 @@ const TONE: Record<JobStatus, string> = {
   downloading: "bg-ink/[0.06] text-ink/55",
   transcribe: "bg-sky-500/15 text-sky-700",
   done: "bg-emerald-500/15 text-emerald-700",
+  failed: "bg-red-500/15 text-red-700",
 };
 
 export default function JobStatusBadge({ status }: { status: JobStatus }) {

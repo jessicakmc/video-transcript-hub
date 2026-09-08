@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { validateVideoUrl } from '@/lib/video-url';
 
 export async function POST(req: Request) {
   // 1. Authenticate the caller via the cookie session.
@@ -20,6 +21,13 @@ export async function POST(req: Request) {
   };
   if (!body.video_source_url) {
     return NextResponse.json({ error: 'video_source_url required' }, { status: 400 });
+  }
+
+  // The client checks this too; repeated here because the route is reachable
+  // directly and a rejected URL is cheaper than a job that dies in the worker.
+  const invalid = validateVideoUrl(body.video_source_url);
+  if (invalid) {
+    return NextResponse.json({ error: invalid }, { status: 400 });
   }
 
   // 2. Use the Supabase Secret key to insert the job + session rows.
