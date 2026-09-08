@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDocumentHead } from "@/lib/use-document-head";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -144,9 +145,9 @@ export default function AppShell() {
           <span className="font-display text-sm font-semibold tracking-tight">Spooler</span>
         </div>
         <nav className="space-y-1 p-3 text-sm font-medium">
-          <a href="#upload" className="flex items-center gap-2.5 rounded-lg bg-chrome/15 px-3 py-2 text-chrome-deep">
+          <Link href="/upload" className="flex items-center gap-2.5 rounded-lg bg-chrome/15 px-3 py-2 text-chrome-deep">
             <span className="size-4 shrink-0 rounded bg-chrome-deep/30" /> 上傳 / Upload
-          </a>
+          </Link>
           <a href="#transcripts" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-ink/65 transition-colors hover:bg-chrome/10">
             <span className="size-4 shrink-0 rounded bg-ink/15" /> 逐字稿 / Transcripts
           </a>

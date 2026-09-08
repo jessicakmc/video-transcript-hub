@@ -1,0 +1,24 @@
+[Unit]
+Description=M1 Whisper distributor (polls Supabase, spawns worker.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/app/worker
+ExecStart=/home/ubuntu/app/worker/venv/bin/python /home/ubuntu/app/worker/distributor.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/m1-distributor.log
+StandardError=append:/var/log/m1-distributor.log
+# CRITICAL: systemd's default PATH is /usr/bin:/bin — that does NOT include
+# the venv's bin/, so `subprocess.run(["yt-dlp", ...])` from worker.py crashes
+# with FileNotFoundError: 'yt-dlp'. Prepend the venv bin dir explicitly.
+Environment=PATH=/home/ubuntu/app/worker/venv/bin:/usr/local/bin:/usr/bin:/bin
+# AWS region for boto3 — this EC2 (i-02071236a89d99980) runs in us-east-1c,
+# and the four M1 secrets live in us-east-1 Secrets Manager.
+Environment=AWS_DEFAULT_REGION=us-east-1
+
+[Install]
+WantedBy=multi-user.target
