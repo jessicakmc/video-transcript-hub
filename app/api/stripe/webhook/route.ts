@@ -80,24 +80,15 @@ export async function POST(req: NextRequest) {
     return new NextResponse('db insert failed', { status: 500 });
   }
 
-  // 2. Balance is derived from the ledger. If this write fails the ledger row
-  // still exists, so the balance is repairable with a SUM(amount) rebuild.
-  const { data: profile, error: readErr } = await admin
-    .from('profiles')
-    .select('credits_balance')
-    .eq('id', userId)
-    .single();
-
-  if (readErr) {
-    console.error('profile read failed', readErr);
-    return new NextResponse('profile read failed', { status: 500 });
-  }
-
-  const newBalance = Number(profile?.credits_balance ?? 0) + credits;
-  const { error: updateErr } = await admin
-    .from('profiles')
-    .update({ credits_balance: newBalance })
-    .eq('id', userId);
+  // 2. Balance is derived from the ledger. apply_credit_delta does the
+  // arithmetic inside one UPDATE, so two deliveries landing together cannot
+  // read the same balance and clobber each other — the failure mode that
+  // actually bit the worker side on 2026-09-12. If this write fails the ledger
+  // row still exists, so the balance is repairable with a SUM(amount) rebuild.
+  const { error: updateErr } = await admin.rpc('apply_credit_delta', {
+    p_user_id: userId,
+    p_delta: credits,
+  });
 
   if (updateErr) {
     console.error('balance update failed', updateErr);

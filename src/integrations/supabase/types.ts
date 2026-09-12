@@ -256,7 +256,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      apply_credit_delta: {
+        Args: { p_delta: number; p_user_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

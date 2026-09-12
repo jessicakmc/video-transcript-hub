@@ -215,8 +215,11 @@ def mark_insufficient(job: dict, minutes: int, balance: float) -> None:
 def deduct_credits(job: dict, minutes: int) -> None:
     """Ledger row first (source of truth), then the derived balance.
 
-    Read-then-write is deliberate for v1: the M1 distributor spawns one worker
-    per job sequentially, so the TOCTOU window can't realistically open."""
+    The balance goes through apply_credit_delta(), which does the arithmetic
+    inside one UPDATE. Read-then-write was wrong here: the distributor spawns
+    every pending job in a single poll, so workers finish concurrently — two
+    jobs 11 ms apart on 2026-09-12 read the same balance and one deduction was
+    lost."""
     db.table("credit_transactions").insert(
         {
             "user_id": job["user_id"],
@@ -226,10 +229,10 @@ def deduct_credits(job: dict, minutes: int) -> None:
             "job_id": job["id"],
         }
     ).execute()
-    new_balance = max(0.0, get_balance(job["user_id"]) - minutes)
-    db.table("profiles").update({"credits_balance": new_balance}).eq(
-        "id", job["user_id"]
-    ).execute()
+    new_balance = db.rpc(
+        "apply_credit_delta",
+        {"p_user_id": job["user_id"], "p_delta": -minutes},
+    ).execute().data
     print(f"[{job['id']}] deducted {minutes} credit(s), balance now {new_balance}", flush=True)
 
 
