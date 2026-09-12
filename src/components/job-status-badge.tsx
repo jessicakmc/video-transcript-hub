@@ -1,4 +1,21 @@
-export type JobStatus = "pending" | "downloading" | "transcribe" | "done" | "failed";
+export type JobStatus =
+  | "pending"
+  | "downloading"
+  | "transcribe"
+  | "done"
+  | "failed"
+  | "insufficient_credits";
+
+/** Statuses a job never leaves. Anything else is still moving, so the UI polls. */
+const TERMINAL: ReadonlySet<string> = new Set<JobStatus>([
+  "done",
+  "failed",
+  "insufficient_credits",
+]);
+
+export function isInFlight(status: string): boolean {
+  return !TERMINAL.has(status);
+}
 
 const LABEL: Record<JobStatus, string> = {
   pending: "佇列中 Pending",
@@ -6,6 +23,7 @@ const LABEL: Record<JobStatus, string> = {
   transcribe: "轉錄中 Transcribing",
   done: "完成 Done",
   failed: "失敗 Failed",
+  insufficient_credits: "點數不足 Insufficient credits",
 };
 
 // gray for pending/downloading, blue for transcribe, green for done
@@ -15,14 +33,17 @@ const TONE: Record<JobStatus, string> = {
   transcribe: "bg-sky-500/15 text-sky-700",
   done: "bg-emerald-500/15 text-emerald-700",
   failed: "bg-red-500/15 text-red-700",
+  insufficient_credits: "bg-amber-500/15 text-amber-800",
 };
 
 export default function JobStatusBadge({ status }: { status: JobStatus }) {
   return (
     <span
-      className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE[status]}`}
+      className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+        TONE[status] ?? "bg-ink/[0.06] text-ink/55"
+      }`}
     >
-      {LABEL[status]}
+      {LABEL[status] ?? status}
     </span>
   );
 }

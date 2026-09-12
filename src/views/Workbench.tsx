@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import JobStatusBadge, {
   TranscriptCell,
+  isInFlight,
   type JobStatus,
 } from "@/components/job-status-badge";
 
@@ -73,7 +74,9 @@ export default function AppShell() {
     enabled: Boolean(user?.id),
     refetchInterval: (query) => {
       const rows = (query.state.data ?? []) as Job[];
-      return rows.some((j) => j.status !== "done") ? 5000 : false;
+      // Poll only while something is still moving. Checking `!== "done"` kept
+      // polling forever once a failed / insufficient_credits row existed.
+      return rows.some((j) => isInFlight(j.status)) ? 5000 : false;
     },
     queryFn: async () => {
       const { data } = await supabase

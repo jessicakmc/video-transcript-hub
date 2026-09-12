@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import AutoRefresh from "@/components/auto-refresh";
 import CreditsBadge from "@/components/credits-badge";
 import JobStatusBadge, {
   TranscriptCell,
+  isInFlight,
   type JobStatus,
 } from "@/components/job-status-badge";
 import UploadForm from "@/components/upload-form";
@@ -52,9 +54,11 @@ export default async function UploadPage() {
     .limit(20);
 
   const jobs = (data ?? []) as JobRow[];
+  const hasJobInFlight = jobs.some((job) => isInFlight(job.status));
 
   return (
     <div className="min-h-screen bg-paper font-sans text-ink antialiased">
+      <AutoRefresh active={hasJobInFlight} />
       <div className="flex h-16 items-center justify-between border-b border-ink/10 bg-white/40 px-6">
         <div className="flex items-center gap-3">
           <Link href="/app" className="grid size-8 place-items-center rounded-[10px] bg-gradient-to-b from-chrome to-chrome-deep font-display text-sm font-semibold text-primary-foreground">
@@ -78,7 +82,13 @@ export default async function UploadPage() {
             <h2 className="font-display text-sm font-semibold tracking-tight">
               我的工作 / Your jobs
             </h2>
-            <span className="font-mono text-[11px] text-ink/45">{jobs.length} items</span>
+            <span className="font-mono text-[11px] text-ink/45">
+              {hasJobInFlight ? (
+                <span className="text-chrome-deep">自動更新中 · auto-updating</span>
+              ) : (
+                `${jobs.length} items`
+              )}
+            </span>
           </div>
 
           {jobs.length === 0 ? (
