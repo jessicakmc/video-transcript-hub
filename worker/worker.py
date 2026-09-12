@@ -56,6 +56,38 @@ def update_session(session_id: str, **fields) -> None:
     db.table("job_sessions").update(fields).eq("id", session_id).execute()
 
 
+UPLOAD_BUCKET = "uploads"
+
+
+def download_upload(storage_path: str, dest_dir: Path) -> Path:
+    """Pull a user-uploaded file out of Storage with the Secret key.
+
+    yt-dlp is bypassed entirely: this is a plain object, not a media page, and
+    the Secret key reads it without minting a signed URL."""
+    suffix = Path(storage_path).suffix or ".bin"
+    dest = dest_dir / f"upload{suffix}"
+    blob = db.storage.from_(UPLOAD_BUCKET).download(storage_path)
+    dest.write_bytes(blob)
+    return dest
+
+
+def delete_upload(job: dict) -> None:
+    """Uploads are deleted as soon as the job stops needing them — done, failed
+    or gated. The transcript and summary are the durable artefacts; keeping the
+    source file would grow storage forever for no benefit.
+
+    Never raises: losing the transcript because a cleanup failed would be a far
+    worse trade than leaving one orphaned object behind."""
+    path = job.get("storage_path")
+    if job.get("source_type") != "upload" or not path:
+        return
+    try:
+        db.storage.from_(UPLOAD_BUCKET).remove([path])
+        print(f"[{job['id']}] deleted upload {path}", flush=True)
+    except Exception as e:
+        print(f"[{job['id']}] could not delete upload {path}: {e}", flush=True)
+
+
 def download_video(url: str, dest_dir: Path) -> Path:
     """yt-dlp for URLs; pass through for local file paths."""
     if url.startswith(("http://", "https://")):
@@ -177,6 +209,7 @@ def mark_insufficient(job: dict, minutes: int, balance: float) -> None:
         f"[{job['id']}] insufficient credits — {minutes} min needed, {int(balance)} available",
         flush=True,
     )
+    delete_upload(job)
 
 
 def deduct_credits(job: dict, minutes: int) -> None:
@@ -220,7 +253,11 @@ def run(job_id: str) -> None:
     update_job(job_id, status="downloading")
 
     balance = get_balance(job["user_id"])
-    minutes = probe_duration_minutes_cheap(job["video_source_url"])
+    is_upload = job.get("source_type") == "upload"
+
+    # An uploaded file has no manifest to read, so there is nothing to probe
+    # cheaply — ffprobe answers precisely once it is on disk, one step below.
+    minutes = None if is_upload else probe_duration_minutes_cheap(job["video_source_url"])
 
     # Cheap gate: the manifest gave us the duration, so we can refuse before
     # spending a single byte of download.
@@ -232,7 +269,11 @@ def run(job_id: str) -> None:
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        video = download_video(job["video_source_url"], tmp_path)
+        video = (
+            download_upload(job["storage_path"], tmp_path)
+            if is_upload
+            else download_video(job["video_source_url"], tmp_path)
+        )
         mp3 = to_mp3(video, tmp_path)
 
         # Precise gate: no manifest duration, so pay for one download and let
@@ -254,6 +295,7 @@ def run(job_id: str) -> None:
         update_session(session_id, subtitle_txt_content=full_text)
         deduct_credits(job, minutes)
         update_job(job_id, status="done")
+        delete_upload(job)
 
     print(f"[{job_id}] done — {len(full_text)} chars", flush=True)
 
@@ -270,6 +312,7 @@ def main() -> None:
         traceback.print_exc()
         try:
             update_job(job_id, status="failed")
+            delete_upload(get_job(job_id))
         except Exception:
             # Losing the status write is not worth masking the original error.
             traceback.print_exc()

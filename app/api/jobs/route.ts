@@ -18,16 +18,41 @@ export async function POST(req: Request) {
     video_source_url?: string;
     topic?: string | null;
     language?: string;
+    source_type?: string;
+    storage_path?: string;
+    filename?: string;
   };
-  if (!body.video_source_url) {
-    return NextResponse.json({ error: 'video_source_url required' }, { status: 400 });
-  }
 
-  // The client checks this too; repeated here because the route is reachable
-  // directly and a rejected URL is cheaper than a job that dies in the worker.
-  const invalid = validateVideoUrl(body.video_source_url);
-  if (invalid) {
-    return NextResponse.json({ error: invalid }, { status: 400 });
+  const sourceType = body.source_type === 'upload' ? 'upload' : 'url';
+  let displaySource: string;
+  let storagePath: string | null = null;
+
+  if (sourceType === 'upload') {
+    // The file is already in Storage — the browser put it there directly,
+    // because a Vercel route can only take ~4.5 MB of body.
+    if (!body.storage_path) {
+      return NextResponse.json({ error: 'storage_path required' }, { status: 400 });
+    }
+    // Storage RLS already confines writes to the user's own folder; this
+    // re-check stops a crafted request from pointing a job at someone else's
+    // object, since the worker reads it with the Secret key.
+    if (!body.storage_path.startsWith(`${user.id}/`)) {
+      return NextResponse.json({ error: 'storage_path not yours' }, { status: 403 });
+    }
+    storagePath = body.storage_path;
+    displaySource = body.filename?.trim() || body.storage_path.split('/').pop() || 'upload';
+  } else {
+    if (!body.video_source_url) {
+      return NextResponse.json({ error: 'video_source_url required' }, { status: 400 });
+    }
+
+    // The client checks this too; repeated here because the route is reachable
+    // directly and a rejected URL is cheaper than a job that dies in the worker.
+    const invalid = validateVideoUrl(body.video_source_url);
+    if (invalid) {
+      return NextResponse.json({ error: invalid }, { status: 400 });
+    }
+    displaySource = body.video_source_url;
   }
 
   // 2. Fast credit floor. This only blocks the obvious "no credits at all"
@@ -55,7 +80,9 @@ export async function POST(req: Request) {
     .from('jobs')
     .insert({
       user_id: user.id,
-      video_source_url: body.video_source_url,
+      video_source_url: displaySource,
+      source_type: sourceType,
+      storage_path: storagePath,
       topic: body.topic ?? null,
       language: body.language ?? 'zh',
       status: 'pending',

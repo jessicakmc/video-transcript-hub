@@ -130,7 +130,9 @@ export type Database = {
           id: string
           language: string
           required_credits: number | null
+          source_type: string
           status: string
+          storage_path: string | null
           topic: string | null
           updated_at: string
           user_id: string
@@ -142,7 +144,9 @@ export type Database = {
           id?: string
           language?: string
           required_credits?: number | null
+          source_type?: string
           status?: string
+          storage_path?: string | null
           topic?: string | null
           updated_at?: string
           user_id: string
@@ -154,7 +158,9 @@ export type Database = {
           id?: string
           language?: string
           required_credits?: number | null
+          source_type?: string
           status?: string
+          storage_path?: string | null
           topic?: string | null
           updated_at?: string
           user_id?: string
