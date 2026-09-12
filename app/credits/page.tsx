@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import CreditTiers, { type CreditTier } from '@/components/credit-tiers';
+import CreditsBadge from '@/components/credits-badge';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: '點數 / Credits — Video Speed Reader' };
@@ -87,9 +88,12 @@ export default async function CreditsPage() {
             點數 / Credits
           </h1>
         </div>
-        <Link href="/app" className="text-sm text-ink/55 transition-colors hover:text-chrome-deep">
-          回工作台 / Workbench
-        </Link>
+        <div className="flex items-center gap-4">
+          <CreditsBadge showBuyLink={false} />
+          <Link href="/app" className="text-sm text-ink/55 transition-colors hover:text-chrome-deep">
+            回工作台 / Workbench
+          </Link>
+        </div>
       </div>
 
       <div className="mx-auto max-w-3xl px-6 py-8">

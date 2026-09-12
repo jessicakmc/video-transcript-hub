@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import CreditsBadge from "@/components/credits-badge";
 import JobStatusBadge, {
   TranscriptCell,
   type JobStatus,
@@ -63,9 +64,12 @@ export default async function UploadPage() {
             上傳影片 / Transcribe a video
           </h1>
         </div>
-        <Link href="/app" className="text-sm text-ink/55 transition-colors hover:text-chrome-deep">
-          回工作台 / Workbench
-        </Link>
+        <div className="flex items-center gap-4">
+          <CreditsBadge />
+          <Link href="/app" className="text-sm text-ink/55 transition-colors hover:text-chrome-deep">
+            回工作台 / Workbench
+          </Link>
+        </div>
       </div>
 
       <div className="mx-auto max-w-3xl px-6 py-8">

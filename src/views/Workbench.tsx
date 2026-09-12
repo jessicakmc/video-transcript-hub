@@ -22,6 +22,7 @@ type Profile = {
   display_name: string | null;
   usage_minutes: number;
   monthly_quota_minutes: number;
+  credits_balance: number;
 };
 
 type Job = {
@@ -58,7 +59,7 @@ export default function AppShell() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("display_name, usage_minutes, monthly_quota_minutes")
+        .select("display_name, usage_minutes, monthly_quota_minutes, credits_balance")
         .eq("id", user!.id)
         .maybeSingle();
       return data as Profile | null;
@@ -145,6 +146,13 @@ export default function AppShell() {
         <div className="flex h-16 items-center justify-between border-b border-ink/10 bg-white/40 px-6">
           <h1 className="font-display text-base font-semibold tracking-tight">工作台 / Workbench</h1>
           <div className="flex items-center gap-3">
+            <Link
+              href="/credits"
+              className="rounded-full bg-chrome-deep/5 px-2.5 py-1 font-mono text-[11px] text-chrome-deep ring-1 ring-chrome-deep/10 transition-colors hover:bg-chrome-deep/10"
+              title="加購點數 / Buy credits"
+            >
+              Credits: {profile?.credits_balance ?? 0}
+            </Link>
             <span className="hidden font-mono text-[11px] text-ink/50 sm:block">
               {profile?.display_name ?? user?.email}
             </span>

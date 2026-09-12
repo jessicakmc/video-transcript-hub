@@ -116,6 +116,90 @@ def split_chunks(mp3_path: Path, dest_dir: Path) -> list[Path]:
     return chunks
 
 
+def minutes_from_seconds(seconds: float) -> int:
+    """1 credit = 1 minute, rounded UP. A 61-second clip costs 2 credits: never
+    round down, or a user can submit just-under-60s clips forever for free."""
+    return max(1, math.ceil(seconds / 60))
+
+
+def probe_duration_minutes_cheap(video_url: str) -> int | None:
+    """Duration WITHOUT downloading, for sources that publish a manifest
+    (YouTube, Vimeo, archive.org with metadata). Returns None when the source
+    doesn't expose one — yt-dlp prints the literal string 'NA' for direct
+    CloudFront/S3 mp4s, and float('NA') would crash the worker. None means
+    "ask ffprobe after the download instead"."""
+    if not video_url.startswith(("http://", "https://")):
+        return None
+    try:
+        out = subprocess.run(
+            ["yt-dlp", "--print", "duration", "--no-warnings", video_url],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        return None
+    if not out or out.upper() == "NA":
+        return None
+    try:
+        return minutes_from_seconds(float(out.splitlines()[0]))
+    except ValueError:
+        return None
+
+
+def get_balance(user_id: str) -> float:
+    row = (
+        db.table("profiles")
+        .select("credits_balance")
+        .eq("id", user_id)
+        .single()
+        .execute()
+        .data
+    )
+    return float(row["credits_balance"])
+
+
+def mark_insufficient(job: dict, minutes: int, balance: float) -> None:
+    """Park the job without calling Whisper — that is where the real money is.
+    The zero-amount ledger row is the audit trail for why it stopped."""
+    update_job(job["id"], status="insufficient_credits")
+    db.table("credit_transactions").insert(
+        {
+            "user_id": job["user_id"],
+            "amount": 0,
+            "type": "deduction",
+            "description": f"Insufficient credits: video is {minutes} min, you have {int(balance)}",
+            "job_id": job["id"],
+        }
+    ).execute()
+    print(
+        f"[{job['id']}] insufficient credits — {minutes} min needed, {int(balance)} available",
+        flush=True,
+    )
+
+
+def deduct_credits(job: dict, minutes: int) -> None:
+    """Ledger row first (source of truth), then the derived balance.
+
+    Read-then-write is deliberate for v1: the M1 distributor spawns one worker
+    per job sequentially, so the TOCTOU window can't realistically open."""
+    db.table("credit_transactions").insert(
+        {
+            "user_id": job["user_id"],
+            "amount": -minutes,
+            "type": "deduction",
+            "description": f"Transcribed {minutes} min video",
+            "job_id": job["id"],
+        }
+    ).execute()
+    new_balance = max(0.0, get_balance(job["user_id"]) - minutes)
+    db.table("profiles").update({"credits_balance": new_balance}).eq(
+        "id", job["user_id"]
+    ).execute()
+    print(f"[{job['id']}] deducted {minutes} credit(s), balance now {new_balance}", flush=True)
+
+
 def transcribe_chunk(chunk_path: Path, language: str) -> str:
     with open(chunk_path, "rb") as f:
         return openai_client.audio.transcriptions.create(
@@ -130,13 +214,34 @@ def run(job_id: str) -> None:
     job = get_job(job_id)
     session_id = job["current_session_id"]
 
+    # Claim the job before any external work. If the probe or the download
+    # crashes, the job sits in 'downloading' and the distributor's pending-job
+    # poll won't re-spawn this worker in a loop.
     update_job(job_id, status="downloading")
+
+    balance = get_balance(job["user_id"])
+    minutes = probe_duration_minutes_cheap(job["video_source_url"])
+
+    # Cheap gate: the manifest gave us the duration, so we can refuse before
+    # spending a single byte of download.
+    if minutes is not None and minutes > balance:
+        mark_insufficient(job, minutes, balance)
+        return
+
     print(f"[{job_id}] downloading {job['video_source_url']}", flush=True)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         video = download_video(job["video_source_url"], tmp_path)
         mp3 = to_mp3(video, tmp_path)
+
+        # Precise gate: no manifest duration, so pay for one download and let
+        # ffprobe answer. Whisper — the expensive part — still never runs.
+        if minutes is None:
+            minutes = minutes_from_seconds(get_duration_seconds(mp3))
+            if minutes > balance:
+                mark_insufficient(job, minutes, balance)
+                return
 
         update_job(job_id, status="transcribe")
         chunks = split_chunks(mp3, tmp_path)
@@ -147,6 +252,7 @@ def run(job_id: str) -> None:
         )
 
         update_session(session_id, subtitle_txt_content=full_text)
+        deduct_credits(job, minutes)
         update_job(job_id, status="done")
 
     print(f"[{job_id}] done — {len(full_text)} chars", flush=True)

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -22,6 +23,7 @@ export default function UploadForm() {
   const [language, setLanguage] = useState("zh");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [insufficientCredits, setInsufficientCredits] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,6 +31,8 @@ export default function UploadForm() {
 
     // Catch the YouTube case here so the user finds out immediately rather
     // than watching a job die in the worker minutes later.
+    setInsufficientCredits(false);
+
     const invalid = validateVideoUrl(videoSourceUrl);
     if (invalid) {
       setError(invalid);
@@ -48,6 +52,10 @@ export default function UploadForm() {
       });
 
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (res.status === 402) {
+        setInsufficientCredits(true);
+        return;
+      }
       if (!res.ok) {
         throw new Error(payload.error ?? `Request failed (${res.status})`);
       }
@@ -120,6 +128,15 @@ export default function UploadForm() {
           ))}
         </select>
       </div>
+
+      {insufficientCredits && (
+        <p className="rounded-[10px] bg-amber-500/10 px-3 py-2 text-sm text-amber-800" role="alert">
+          點數不足 / You don&apos;t have enough credits —{" "}
+          <Link href="/credits" className="font-medium underline">
+            加購點數 / Buy credits
+          </Link>
+        </p>
+      )}
 
       {error && (
         <p className="rounded-[10px] bg-red-500/10 px-3 py-2 text-sm text-red-700" role="alert">
