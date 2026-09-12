@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      credit_products: {
+        Row: {
+          active: boolean
+          created_at: string
+          credits: number
+          id: string
+          name: string
+          price_usd: number
+          stripe_price_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          credits: number
+          id?: string
+          name: string
+          price_usd: number
+          stripe_price_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          credits?: number
+          id?: string
+          name?: string
+          price_usd?: number
+          stripe_price_id?: string | null
+        }
+        Relationships: []
+      }
+      credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          job_id: string | null
+          stripe_payment_intent_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          stripe_payment_intent_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          stripe_payment_intent_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_sessions: {
         Row: {
           created_at: string
@@ -94,6 +165,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          credits_balance: number
           display_name: string | null
           id: string
           monthly_quota_minutes: number
@@ -103,6 +175,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          credits_balance?: number
           display_name?: string | null
           id: string
           monthly_quota_minutes?: number
@@ -112,6 +185,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          credits_balance?: number
           display_name?: string | null
           id?: string
           monthly_quota_minutes?: number

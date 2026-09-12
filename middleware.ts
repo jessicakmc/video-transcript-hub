@@ -54,5 +54,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
+  // `api/stripe/webhook` is excluded on purpose: Stripe is a machine caller with
+  // no auth cookie, and letting `auth.getUser()` touch that request breaks
+  // signature verification (400) or redirects the delivery (307).
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|api/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 };
