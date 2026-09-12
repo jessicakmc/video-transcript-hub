@@ -163,7 +163,7 @@ def get_balance(user_id: str) -> float:
 def mark_insufficient(job: dict, minutes: int, balance: float) -> None:
     """Park the job without calling Whisper — that is where the real money is.
     The zero-amount ledger row is the audit trail for why it stopped."""
-    update_job(job["id"], status="insufficient_credits")
+    update_job(job["id"], status="insufficient_credits", required_credits=minutes)
     db.table("credit_transactions").insert(
         {
             "user_id": job["user_id"],

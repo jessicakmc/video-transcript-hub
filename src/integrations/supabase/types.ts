@@ -129,6 +129,7 @@ export type Database = {
           current_session_id: string | null
           id: string
           language: string
+          required_credits: number | null
           status: string
           topic: string | null
           updated_at: string
@@ -140,6 +141,7 @@ export type Database = {
           current_session_id?: string | null
           id?: string
           language?: string
+          required_credits?: number | null
           status?: string
           topic?: string | null
           updated_at?: string
@@ -151,6 +153,7 @@ export type Database = {
           current_session_id?: string | null
           id?: string
           language?: string
+          required_credits?: number | null
           status?: string
           topic?: string | null
           updated_at?: string

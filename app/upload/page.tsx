@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/auto-refresh";
 import CreditsBadge from "@/components/credits-badge";
+import InsufficientCreditsBadge, {
+  type CreditPack,
+} from "@/components/insufficient-credits-badge";
 import SummaryCell, { type SummaryStatus } from "@/components/summary-cell";
 import JobStatusBadge, {
   TranscriptCell,
@@ -23,6 +26,7 @@ type JobRow = {
   video_source_url: string;
   status: JobStatus;
   current_session_id: string | null;
+  required_credits: number | null;
 };
 
 function relativeTime(iso: string): string {
@@ -50,7 +54,7 @@ export default async function UploadPage() {
 
   const { data } = await supabase
     .from("jobs")
-    .select("id, created_at, video_source_url, status, current_session_id")
+    .select("id, created_at, video_source_url, status, current_session_id, required_credits")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -66,6 +70,24 @@ export default async function UploadPage() {
   const { data: sessions } = sessionIds.length
     ? await supabase.from("job_sessions").select("id, summary_status").in("id", sessionIds)
     : { data: [] };
+
+  // Only needed to explain a gated row, so don't pay for these queries otherwise.
+  const hasGatedJob = jobs.some((job) => job.status === "insufficient_credits");
+
+  const { data: profile } = hasGatedJob
+    ? await supabase.from("profiles").select("credits_balance").eq("id", user.id).single()
+    : { data: null };
+
+  const { data: packRows } = hasGatedJob
+    ? await supabase.from("credit_products").select("name, credits, price_usd").eq("active", true)
+    : { data: [] };
+
+  const balance = Number(profile?.credits_balance ?? 0);
+  const packs: CreditPack[] = (packRows ?? []).map((p) => ({
+    name: p.name,
+    credits: Number(p.credits),
+    price_usd: Number(p.price_usd),
+  }));
 
   const summaryBySession = new Map<string, SummaryStatus>(
     (sessions ?? []).map((row) => [row.id, (row.summary_status ?? "none") as SummaryStatus]),
@@ -149,7 +171,15 @@ export default async function UploadPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <JobStatusBadge status={job.status} />
+                        {job.status === "insufficient_credits" ? (
+                          <InsufficientCreditsBadge
+                            requiredCredits={job.required_credits}
+                            balance={balance}
+                            packs={packs}
+                          />
+                        ) : (
+                          <JobStatusBadge status={job.status} />
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <TranscriptCell id={job.id} status={job.status} />
