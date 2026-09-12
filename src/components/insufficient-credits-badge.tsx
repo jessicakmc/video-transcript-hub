@@ -1,19 +1,22 @@
+import Link from 'next/link';
+
 export type CreditPack = { name: string; credits: number; price_usd: number };
 
 /**
- * The `insufficient_credits` badge, with the arithmetic on hover.
+ * The `insufficient_credits` badge, with the arithmetic underneath it.
  *
- * "Not enough" on its own makes the user guess how much to buy, so the hover
- * text says what the video needed, what they have, the shortfall, and the
- * smallest pack that covers it. The shortfall is computed against the CURRENT
+ * "Not enough" on its own makes the user guess how much to buy, so the row also
+ * says what the video needed, the shortfall, and the smallest pack that covers
+ * it, linked straight to /credits. The shortfall is computed against the CURRENT
  * balance, not the balance when the job was gated — so after a purchase the
  * same row tells the truth instead of a stale number.
  *
- * This uses the native `title` tooltip on purpose. The jobs table lives in a
- * horizontally scrollable container, and `overflow-x: auto` also clips the
- * vertical axis, so an absolutely-positioned tooltip gets cut off on the last
- * row. Making a styled one survive that needs a portal; the native tooltip is
- * never clipped and costs nothing.
+ * The shortfall is rendered inline, under the badge, rather than in a tooltip.
+ * A native `title` needs a second of hovering and does not exist on touch, so
+ * the first thing a user did was hover, see nothing, and conclude the hint was
+ * missing. A styled hover tooltip would not survive either: the table sits in
+ * an overflow-x-auto container, which clips the vertical axis too. Something
+ * this important should just be on screen.
  */
 export function insufficientCreditsHint(
   requiredCredits: number | null,
@@ -54,13 +57,44 @@ export default function InsufficientCreditsBadge({
   balance: number;
   packs: CreditPack[];
 }) {
+  const shortfall =
+    requiredCredits === null ? null : Math.max(0, Math.ceil(requiredCredits - balance));
+
+  const sorted = [...packs].sort((a, b) => a.credits - b.credits);
+  const suggestion =
+    shortfall && shortfall > 0
+      ? (sorted.find((p) => p.credits >= shortfall) ?? sorted[sorted.length - 1])
+      : undefined;
+
   return (
     <span
+      className="inline-block"
       title={insufficientCreditsHint(requiredCredits, balance, packs)}
-      tabIndex={0}
-      className="inline-block shrink-0 cursor-help rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-medium text-amber-800 underline decoration-amber-700/30 decoration-dotted underline-offset-4 outline-none ring-amber-600/30 focus-visible:ring-2"
     >
-      點數不足 Insufficient credits
+      <span className="inline-block shrink-0 rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-medium text-amber-800">
+        點數不足 Insufficient credits
+      </span>
+
+      {requiredCredits === null ? null : (
+        <span className="mt-1 block whitespace-nowrap text-[11px] text-ink/55">
+          {shortfall && shortfall > 0 ? (
+            <>
+              需要 {requiredCredits} · 還差{' '}
+              <strong className="font-semibold text-amber-800">{shortfall}</strong> 點
+              {suggestion ? (
+                <>
+                  {' · '}
+                  <Link href="/credits" className="text-chrome-deep underline">
+                    加購 {suggestion.name}
+                  </Link>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <>點數已足夠，重新送出即可</>
+          )}
+        </span>
+      )}
     </span>
   );
 }
