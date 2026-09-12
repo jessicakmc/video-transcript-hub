@@ -127,6 +127,13 @@ export default async function UploadPage() {
 
       <div className="mx-auto max-w-3xl px-6 py-8">
         <section>
+          <h2 className="mb-4 font-display text-sm font-semibold tracking-tight">
+            送出新影片 / New transcription
+          </h2>
+          <UploadForm />
+        </section>
+
+        <section className="mt-10">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-sm font-semibold tracking-tight">
               我的工作 / Your jobs
@@ -197,13 +204,6 @@ export default async function UploadPage() {
               </table>
             </div>
           )}
-        </section>
-
-        <section className="mt-10">
-          <h2 className="mb-4 font-display text-sm font-semibold tracking-tight">
-            送出新影片 / New transcription
-          </h2>
-          <UploadForm />
         </section>
       </div>
     </div>
