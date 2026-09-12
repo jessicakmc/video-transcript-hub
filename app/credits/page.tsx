@@ -36,20 +36,31 @@ export default async function CreditsPage() {
 
   if (!user) redirect('/sign-in');
 
-  const [{ data: profile }, { data: products }, { data: transactions }] = await Promise.all([
-    supabase.from('profiles').select('credits_balance').eq('id', user.id).single(),
-    supabase
-      .from('credit_products')
-      .select('id, name, credits, price_usd, stripe_price_id')
-      .eq('active', true)
-      .order('price_usd'),
-    supabase
-      .from('credit_transactions')
-      .select('id, amount, type, description, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50),
-  ]);
+  // Sequential, not Promise.all: the three reads share one cookie-bound client,
+  // and firing them concurrently right after getUser() can race a token refresh
+  // — which showed up once in production as a page that rendered the balance
+  // but silently claimed there were no packs and no transactions.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('credits_balance')
+    .eq('id', user.id)
+    .single();
+
+  const { data: products, error: productsError } = await supabase
+    .from('credit_products')
+    .select('id, name, credits, price_usd, stripe_price_id')
+    .eq('active', true)
+    .order('price_usd');
+
+  const { data: transactions, error: transactionsError } = await supabase
+    .from('credit_transactions')
+    .select('id, amount, type, description, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (productsError) console.error('credit_products read failed', productsError);
+  if (transactionsError) console.error('credit_transactions read failed', transactionsError);
 
   const balance = Number(profile?.credits_balance ?? 0);
   const rows = products ?? [];
@@ -112,7 +123,13 @@ export default async function CreditsPage() {
           <h2 className="mb-4 font-display text-sm font-semibold tracking-tight">
             加購點數 / Buy credits
           </h2>
-          {tiers.length === 0 ? (
+          {productsError ? (
+            <div className="rounded-[12px] bg-amber-500/10 p-8 text-center ring-1 ring-amber-600/20">
+              <p className="text-sm text-amber-800">
+                方案載入失敗，請重新整理 / Could not load the credit packs — please refresh.
+              </p>
+            </div>
+          ) : tiers.length === 0 ? (
             <div className="rounded-[12px] bg-white/70 p-8 text-center ring-1 ring-ink/10">
               <p className="text-sm text-ink/55">No credit packs are available right now.</p>
             </div>
@@ -126,10 +143,18 @@ export default async function CreditsPage() {
             <h2 className="font-display text-sm font-semibold tracking-tight">
               交易紀錄 / History
             </h2>
-            <span className="font-mono text-[11px] text-ink/45">{history.length} items</span>
+            <span className="font-mono text-[11px] text-ink/45">
+              {transactionsError ? '—' : `${history.length} items`}
+            </span>
           </div>
 
-          {history.length === 0 ? (
+          {transactionsError ? (
+            <div className="rounded-[12px] bg-amber-500/10 p-8 text-center ring-1 ring-amber-600/20">
+              <p className="text-sm text-amber-800">
+                紀錄載入失敗，請重新整理 / Could not load your history — please refresh.
+              </p>
+            </div>
+          ) : history.length === 0 ? (
             <div className="rounded-[12px] bg-white/70 p-8 text-center ring-1 ring-ink/10">
               <p className="text-sm text-ink/55">No transactions yet.</p>
             </div>
