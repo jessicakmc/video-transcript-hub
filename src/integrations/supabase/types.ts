@@ -92,6 +92,8 @@ export type Database = {
           job_id: string
           session_number: number
           subtitle_txt_content: string | null
+          summary_status: string
+          summary_txt: string | null
         }
         Insert: {
           created_at?: string
@@ -99,6 +101,8 @@ export type Database = {
           job_id: string
           session_number?: number
           subtitle_txt_content?: string | null
+          summary_status?: string
+          summary_txt?: string | null
         }
         Update: {
           created_at?: string
@@ -106,6 +110,8 @@ export type Database = {
           job_id?: string
           session_number?: number
           subtitle_txt_content?: string | null
+          summary_status?: string
+          summary_txt?: string | null
         }
         Relationships: [
           {

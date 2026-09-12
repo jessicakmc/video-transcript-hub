@@ -3,6 +3,10 @@ M1 distributor: polls jobs.status='pending' every 10 s, spawns one worker.py
 process per pending job. Worker flips status to 'downloading' immediately,
 so the next poll skips it.
 
+Since M2 it also polls job_sessions.summary_status='pending' and spawns
+summarizer.py per requested summary. Same claim-first contract: the summarizer
+flips the row to 'running' before doing anything, so the next poll skips it.
+
 Reads SUPABASE_URL + SUPABASE_SECRET_KEY from AWS Secrets Manager.
 Same auth model as worker.py — IAM instance profile grants
 `secretsmanager:GetSecretValue` on the supabase-* secret names.
@@ -33,15 +37,35 @@ _secrets = _load_secrets()
 db = create_client(_secrets["SUPABASE_URL"], _secrets["SUPABASE_SECRET_KEY"])
 
 WORKER = Path(__file__).parent / "worker.py"
+SUMMARIZER = Path(__file__).parent / "summarizer.py"
 PYTHON = sys.executable  # use the same venv we're running in
 
 
-def poll_once() -> None:
+def poll_jobs() -> None:
     rows = db.table("jobs").select("id").eq("status", "pending").execute().data
     for row in rows:
         env = {**os.environ, "JOB_ID": row["id"]}
         subprocess.Popen([PYTHON, str(WORKER)], env=env)
         print(f"spawned worker for job {row['id']}", flush=True)
+
+
+def poll_summaries() -> None:
+    rows = (
+        db.table("job_sessions")
+        .select("id")
+        .eq("summary_status", "pending")
+        .execute()
+        .data
+    )
+    for row in rows:
+        env = {**os.environ, "SESSION_ID": row["id"]}
+        subprocess.Popen([PYTHON, str(SUMMARIZER)], env=env)
+        print(f"spawned summarizer for session {row['id']}", flush=True)
+
+
+def poll_once() -> None:
+    poll_jobs()
+    poll_summaries()
 
 
 def main() -> None:

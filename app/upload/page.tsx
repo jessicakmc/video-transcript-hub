@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/auto-refresh";
 import CreditsBadge from "@/components/credits-badge";
+import SummaryCell, { type SummaryStatus } from "@/components/summary-cell";
 import JobStatusBadge, {
   TranscriptCell,
   isInFlight,
@@ -21,6 +22,7 @@ type JobRow = {
   created_at: string;
   video_source_url: string;
   status: JobStatus;
+  current_session_id: string | null;
 };
 
 function relativeTime(iso: string): string {
@@ -48,13 +50,38 @@ export default async function UploadPage() {
 
   const { data } = await supabase
     .from("jobs")
-    .select("id, created_at, video_source_url, status")
+    .select("id, created_at, video_source_url, status, current_session_id")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(20);
 
   const jobs = (data ?? []) as JobRow[];
-  const hasJobInFlight = jobs.some((job) => isInFlight(job.status));
+
+  // Summary state lives on the session row. One extra query keyed by the jobs
+  // we just read, rather than a PostgREST embed, so the shape stays obvious.
+  const sessionIds = jobs
+    .map((job) => job.current_session_id)
+    .filter((id): id is string => Boolean(id));
+
+  const { data: sessions } = sessionIds.length
+    ? await supabase.from("job_sessions").select("id, summary_status").in("id", sessionIds)
+    : { data: [] };
+
+  const summaryBySession = new Map<string, SummaryStatus>(
+    (sessions ?? []).map((row) => [row.id, (row.summary_status ?? "none") as SummaryStatus]),
+  );
+
+  function summaryStatusFor(job: JobRow): SummaryStatus {
+    if (!job.current_session_id) return "none";
+    return summaryBySession.get(job.current_session_id) ?? "none";
+  }
+
+  const hasJobInFlight =
+    jobs.some((job) => isInFlight(job.status)) ||
+    jobs.some((job) => {
+      const s = summaryStatusFor(job);
+      return s === "pending" || s === "running";
+    });
 
   return (
     <div className="min-h-screen bg-paper font-sans text-ink antialiased">
@@ -107,6 +134,7 @@ export default async function UploadPage() {
                     <th className="px-4 py-3 font-normal">URL</th>
                     <th className="px-4 py-3 font-normal">Status</th>
                     <th className="px-4 py-3 font-normal">Transcript</th>
+                    <th className="px-4 py-3 font-normal">Summary</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -125,6 +153,13 @@ export default async function UploadPage() {
                       </td>
                       <td className="px-4 py-3">
                         <TranscriptCell id={job.id} status={job.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <SummaryCell
+                          jobId={job.id}
+                          jobDone={job.status === "done"}
+                          status={summaryStatusFor(job)}
+                        />
                       </td>
                     </tr>
                   ))}
