@@ -55,6 +55,7 @@ export type Database = {
           id: string
           job_id: string | null
           stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
           type: string
           user_id: string
         }
@@ -65,6 +66,7 @@ export type Database = {
           id?: string
           job_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           type: string
           user_id: string
         }
@@ -75,6 +77,7 @@ export type Database = {
           id?: string
           job_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           type?: string
           user_id?: string
         }
