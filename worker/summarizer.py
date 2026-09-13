@@ -95,7 +95,18 @@ Format as PLAIN TEXT, because it is displayed without a markdown renderer:
 """
 
 
+_SECRET_KEYS = ("OPENAI_API_KEY", "SUPABASE_URL", "SUPABASE_SECRET_KEY")
+
+
 def _load_secrets() -> dict[str, str]:
+    """Environment first, Secrets Manager second — same contract as worker.py.
+
+    The summariser ships in the same image and runs as a Fargate task via a
+    command override, so it must read its creds the same way or it crashes on
+    import under the minimal task role.
+    """
+    if all(os.environ.get(k) for k in _SECRET_KEYS):
+        return {k: os.environ[k] for k in _SECRET_KEYS}
     sm = boto3.client("secretsmanager")
     return {
         "OPENAI_API_KEY": sm.get_secret_value(SecretId="openai-api-key")["SecretString"],

@@ -1,0 +1,15 @@
+version: 0.2
+
+# Every command is quoted on purpose: an unquoted "flag: value" or a ":all:"
+# sequence makes CodeBuild's YAML parser read the line as a mapping and fail
+# with YAML_FILE_ERROR.
+phases:
+  pre_build:
+    commands:
+      - "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_URI"
+  build:
+    commands:
+      - "docker build -t $ECR_URI:latest ./worker"
+  post_build:
+    commands:
+      - "docker push $ECR_URI:latest"
