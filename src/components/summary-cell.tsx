@@ -29,6 +29,7 @@ export default function SummaryCell({
   const [open, setOpen] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   if (!jobDone) return <span className="text-ink/35">—</span>;
 
@@ -49,6 +50,18 @@ export default function SummaryCell({
       setError('Network error — please try again');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function copySummary() {
+    if (!summary) return;
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard is blocked outside a secure context or by permissions —
+      // the text is selectable in the modal either way.
     }
   }
 
@@ -106,21 +119,32 @@ export default function SummaryCell({
           onClick={() => setOpen(false)}
         >
           <div
-            className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-[14px] bg-paper p-6 shadow-xl ring-1 ring-ink/10"
+            className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-[14px] bg-paper p-6 shadow-xl ring-1 ring-ink/10"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <h2 className="font-display text-base font-semibold tracking-tight">
                 逐字稿摘要 / Summary
               </h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="shrink-0 rounded-lg px-2 py-1 text-ink/45 transition-colors hover:bg-ink/5 hover:text-ink"
-              >
-                ✕
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                {summary ? (
+                  <button
+                    type="button"
+                    onClick={copySummary}
+                    className="rounded-lg px-2 py-1 text-[11px] font-medium text-ink/55 transition-colors hover:bg-ink/5 hover:text-chrome-deep"
+                  >
+                    {copied ? '已複製 ✓' : '複製 / Copy'}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label="Close"
+                  className="rounded-lg px-2 py-1 text-ink/45 transition-colors hover:bg-ink/5 hover:text-ink"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {error ? (
@@ -128,7 +152,7 @@ export default function SummaryCell({
             ) : summary === null ? (
               <p className="text-sm text-ink/55">載入中…</p>
             ) : (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/80">{summary}</p>
+              <p className="whitespace-pre-wrap text-sm leading-7 text-ink/80">{summary}</p>
             )}
           </div>
         </div>
