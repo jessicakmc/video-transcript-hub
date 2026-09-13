@@ -67,9 +67,17 @@ Rules:
   so plainly rather than resolving it for them.
 - Merge repetition. A point made five times becomes one bullet, optionally
   noting that the speaker kept returning to it.
-- Where the transcript is garbled and the intended meaning is recoverable from
-  context, use the sensible reading and flag it briefly (e.g. "逐字稿此處明顯
-  轉錄錯誤"). Where it is not recoverable, leave it out.
+- Speech-to-text mangles proper nouns above all else — product and service
+  names, technical terms, people, places, companies, titles. When the intended
+  term is unmistakable from the surrounding content, write the correct form
+  rather than copying the mis-transcription: in a talk about AWS, "ManCached"
+  is Memcached and "Matrix" next to Alarm is Metrics. Do this only for names
+  and terms you can identify with confidence from context. Everything else the
+  speaker said — their claims, numbers, dates, reasoning, opinions — is
+  reproduced as stated and never "corrected".
+- For a longer garbled passage where the meaning rather than a name is unclear,
+  use the sensible reading and flag it briefly (e.g. "逐字稿此處明顯轉錄錯誤").
+  Where it is not recoverable at all, leave it out rather than guessing.
 - Scale the length to the source. A five-minute clip gets a short set of notes;
   a one-hour recording gets a thorough one. Do not pad to fill the structure,
   and do not compress a long recording into a handful of lines.
