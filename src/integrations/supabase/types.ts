@@ -21,6 +21,7 @@ export type Database = {
           credits: number
           id: string
           name: string
+          price_gbp: number | null
           price_usd: number
           stripe_price_id: string | null
         }
@@ -30,6 +31,7 @@ export type Database = {
           credits: number
           id?: string
           name: string
+          price_gbp?: number | null
           price_usd: number
           stripe_price_id?: string | null
         }
@@ -39,6 +41,7 @@ export type Database = {
           credits?: number
           id?: string
           name?: string
+          price_gbp?: number | null
           price_usd?: number
           stripe_price_id?: string | null
         }

@@ -1,9 +1,17 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import CreditTiers, { type CreditTier } from '@/components/credit-tiers';
 import CreditsBadge from '@/components/credits-badge';
 import SignOutButton from '@/components/sign-out-button';
+import {
+  CURRENCIES,
+  CURRENCY_LABEL,
+  type Currency,
+  currencyForCountry,
+  isCurrency,
+} from '@/lib/currency';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: '點數 / Credits — Video Speed Reader' };
@@ -29,7 +37,19 @@ function formatDate(iso: string): string {
   return new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
 }
 
-export default async function CreditsPage() {
+export default async function CreditsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ currency?: string }>;
+}) {
+  // Currency: an explicit ?currency= wins, otherwise guess from the visitor's
+  // country. The guess is only ever a default — the toggle below re-renders
+  // this server component with the other one.
+  const [{ currency: requested }, headerList] = await Promise.all([searchParams, headers()]);
+  const currency: Currency = isCurrency(requested)
+    ? requested
+    : currencyForCountry(headerList.get('x-vercel-ip-country'));
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -49,7 +69,7 @@ export default async function CreditsPage() {
 
   const { data: products, error: productsError } = await supabase
     .from('credit_products')
-    .select('id, name, credits, price_usd, stripe_price_id')
+    .select('id, name, credits, price_usd, price_gbp, stripe_price_id')
     .eq('active', true)
     .order('price_usd');
 
@@ -66,21 +86,31 @@ export default async function CreditsPage() {
   const balance = Number(profile?.credits_balance ?? 0);
   const rows = products ?? [];
 
-  // Baseline for the bonus badge is the smallest pack — the worst $/credit.
-  const baseline = rows.reduce<number | null>((worst, p) => {
-    const ratio = Number(p.price_usd) / Number(p.credits);
+  // Price in the currency being displayed. A row with no GBP amount is dropped
+  // rather than rendered blank — the DB constraint makes that unreachable for
+  // active rows, but a missing price must never reach a buy button.
+  const priceOf = (p: { price_usd: number | string; price_gbp: number | string | null }) =>
+    currency === 'gbp' ? (p.price_gbp === null ? null : Number(p.price_gbp)) : Number(p.price_usd);
+
+  const priced = rows.filter((p) => priceOf(p) !== null);
+
+  // Baseline for the bonus badge is the worst per-credit rate on offer, taken
+  // in the displayed currency so the percentage matches the numbers on screen.
+  const baseline = priced.reduce<number | null>((worst, p) => {
+    const ratio = priceOf(p)! / Number(p.credits);
     return worst === null || ratio > worst ? ratio : worst;
   }, null);
 
-  const tiers: CreditTier[] = rows.map((p) => {
-    const usdPerCredit = Number(p.price_usd) / Number(p.credits);
+  const tiers: CreditTier[] = priced.map((p) => {
+    const price = priceOf(p)!;
+    const perCredit = price / Number(p.credits);
     return {
       id: p.id,
       name: p.name,
       credits: Number(p.credits),
-      price_usd: Number(p.price_usd),
-      usd_per_credit: usdPerCredit,
-      bonus_pct: baseline ? Math.round((1 - usdPerCredit / baseline) * 100) : 0,
+      price,
+      per_credit: perCredit,
+      bonus_pct: baseline ? Math.round((1 - perCredit / baseline) * 100) : 0,
     };
   });
 
@@ -122,9 +152,32 @@ export default async function CreditsPage() {
         </section>
 
         <section className="mt-10">
-          <h2 className="mb-4 font-display text-sm font-semibold tracking-tight">
-            加購點數 / Buy credits
-          </h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-sm font-semibold tracking-tight">
+              加購點數 / Buy credits
+            </h2>
+            <div
+              className="flex items-center gap-1 rounded-full bg-ink/5 p-0.5"
+              role="group"
+              aria-label="Currency"
+            >
+              {CURRENCIES.map((code) => (
+                <Link
+                  key={code}
+                  href={`/credits?currency=${code}`}
+                  scroll={false}
+                  aria-current={code === currency ? 'true' : undefined}
+                  className={
+                    code === currency
+                      ? 'rounded-full bg-white px-3 py-1 font-mono text-[11px] text-chrome-deep shadow-sm'
+                      : 'rounded-full px-3 py-1 font-mono text-[11px] text-ink/45 transition-colors hover:text-ink/70'
+                  }
+                >
+                  {CURRENCY_LABEL[code]}
+                </Link>
+              ))}
+            </div>
+          </div>
           {productsError ? (
             <div className="rounded-[12px] bg-amber-500/10 p-8 text-center ring-1 ring-amber-600/20">
               <p className="text-sm text-amber-800">
@@ -136,7 +189,7 @@ export default async function CreditsPage() {
               <p className="text-sm text-ink/55">No credit packs are available right now.</p>
             </div>
           ) : (
-            <CreditTiers tiers={tiers} />
+            <CreditTiers tiers={tiers} currency={currency} />
           )}
         </section>
 

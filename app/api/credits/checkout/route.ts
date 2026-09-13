@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { isCurrency } from '@/lib/currency';
 import { stripe } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -20,10 +21,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { product_id?: string };
+  const body = (await req.json().catch(() => ({}))) as {
+    product_id?: string;
+    currency?: string;
+  };
   if (!body.product_id) {
     return NextResponse.json({ error: 'product_id required' }, { status: 400 });
   }
+
+  // The client sends the currency it displayed. Anything else is rejected
+  // rather than defaulted, so a malformed request can never charge someone in
+  // a currency they were not shown.
+  if (body.currency !== undefined && !isCurrency(body.currency)) {
+    return NextResponse.json({ error: 'unsupported currency' }, { status: 400 });
+  }
+  const currency = body.currency ?? 'usd';
 
   // 2. Look up the pack. Admin client so the lookup can't be shaped by RLS,
   // but the row is still constrained to active products with a real price.
@@ -50,6 +62,9 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
+      // Each price carries both currencies in `currency_options`; naming one
+      // here is what selects it.
+      currency,
       line_items: [{ price: product.stripe_price_id, quantity: 1 }],
       success_url: `${origin}/credits?purchase=success`,
       cancel_url: `${origin}/credits?purchase=cancelled`,
@@ -58,6 +73,7 @@ export async function POST(req: Request) {
         user_id: user.id,
         product_id: product.id,
         credits: String(product.credits),
+        currency,
       },
     });
 

@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 
+import { type Currency, formatMoney } from '@/lib/currency';
+
 export type CreditTier = {
   id: string;
   name: string;
   credits: number;
-  price_usd: number;
-  usd_per_credit: number;
+  /** Amount in the currency being displayed, not always USD. */
+  price: number;
+  per_credit: number;
   bonus_pct: number;
 };
 
@@ -16,7 +19,13 @@ export type CreditTier = {
  * an in-flight lock — without the lock a double-click opens two Checkout
  * Sessions and the user can pay twice.
  */
-export default function CreditTiers({ tiers }: { tiers: CreditTier[] }) {
+export default function CreditTiers({
+  tiers,
+  currency,
+}: {
+  tiers: CreditTier[];
+  currency: Currency;
+}) {
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +38,9 @@ export default function CreditTiers({ tiers }: { tiers: CreditTier[] }) {
       const res = await fetch('/api/credits/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: productId }),
+        // The currency travels with the request: the server must not re-guess
+        // it from the IP, or the price shown and the price charged could differ.
+        body: JSON.stringify({ product_id: productId, currency }),
       });
       const payload = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
 
@@ -64,10 +75,10 @@ export default function CreditTiers({ tiers }: { tiers: CreditTier[] }) {
             </div>
 
             <p className="mt-3 font-display text-2xl font-semibold tracking-tight">
-              ${tier.price_usd.toFixed(2)}
+              {formatMoney(tier.price, currency)}
             </p>
             <p className="mt-1 font-mono text-[11px] text-ink/45">
-              ${tier.usd_per_credit.toFixed(3)} / credit
+              {formatMoney(tier.per_credit, currency, 3)} / credit
             </p>
 
             <button
