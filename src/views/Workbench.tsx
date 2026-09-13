@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useDocumentHead } from "@/lib/use-document-head";
+import SignOutButton from "@/components/sign-out-button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import JobStatusBadge, {
@@ -46,7 +46,6 @@ function relativeTime(iso: string): string {
 
 export default function AppShell() {
   useDocumentHead(HEAD);
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -88,11 +87,11 @@ export default function AppShell() {
     },
   });
 
-  async function handleSignOut() {
+  // Sign-out itself lives in <SignOutButton/>; this only drops the cached job
+  // and profile data so the next user in this browser never sees it.
+  async function clearCachedData() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    await supabase.auth.signOut();
-    router.replace("/sign-in");
   }
 
   const usagePct = profile
@@ -119,12 +118,10 @@ export default function AppShell() {
           <a href="#jobs" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-ink/65 transition-colors hover:bg-chrome/10">
             <span className="size-4 shrink-0 rounded bg-ink/15" /> 逐字稿 / Transcripts
           </a>
-          <button
-            onClick={handleSignOut}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-ink/65 transition-colors hover:bg-chrome/10"
-          >
-            <span className="size-4 shrink-0 rounded bg-ink/15" /> 登出 / Sign out
-          </button>
+          <SignOutButton
+            onBeforeSignOut={clearCachedData}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-ink/65 transition-colors hover:bg-chrome/10 disabled:opacity-60"
+          />
         </nav>
         <div className="mt-auto p-3">
           <div className="rounded-lg bg-chrome-deep/5 p-3 ring-1 ring-chrome-deep/10">
@@ -162,6 +159,7 @@ export default function AppShell() {
             <span className="grid size-8 place-items-center rounded-full bg-gradient-to-b from-chrome to-chrome-deep text-xs font-medium text-primary-foreground ring-1 ring-black/5">
               {initials}
             </span>
+            <SignOutButton onBeforeSignOut={clearCachedData} />
           </div>
         </div>
 

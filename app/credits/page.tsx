@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 
 import CreditTiers, { type CreditTier } from '@/components/credit-tiers';
 import CreditsBadge from '@/components/credits-badge';
+import SignOutButton from '@/components/sign-out-button';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: '點數 / Credits — Video Speed Reader' };
@@ -104,6 +105,7 @@ export default async function CreditsPage() {
           <Link href="/app" className="text-sm text-ink/55 transition-colors hover:text-chrome-deep">
             回工作台 / Workbench
           </Link>
+          <SignOutButton />
         </div>
       </div>
 

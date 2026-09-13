@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/auto-refresh";
 import CreditsBadge from "@/components/credits-badge";
+import SignOutButton from '@/components/sign-out-button';
 import InsufficientCreditsBadge, {
   type CreditPack,
 } from "@/components/insufficient-credits-badge";
@@ -122,6 +123,7 @@ export default async function UploadPage() {
           <Link href="/app" className="text-sm text-ink/55 transition-colors hover:text-chrome-deep">
             回工作台 / Workbench
           </Link>
+          <SignOutButton />
         </div>
       </div>
 
