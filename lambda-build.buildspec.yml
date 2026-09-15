@@ -7,8 +7,8 @@ version: 0.2
 phases:
   build:
     commands:
-      - "pip download --platform manylinux2014_x86_64 --only-binary=:all: --target python supabase boto3"
+      - "pip install --platform manylinux2014_x86_64 --implementation cp --python-version 3.12 --only-binary=:all: --target python supabase boto3"
       - "zip -r deps-layer.zip python"
       - "aws s3 cp deps-layer.zip s3://${ARTIFACTS_BUCKET}/deps-layer.zip"
-      - "cd worker && zip ../handler.zip lambda_distributor.py && cd .."
+      - "zip -j handler.zip worker/lambda_distributor.py"
       - "aws s3 cp handler.zip s3://${ARTIFACTS_BUCKET}/handler.zip"
