@@ -278,13 +278,13 @@ export default function LandingPage() {
             <div className="gloss pointer-events-none absolute inset-x-0 top-0 h-1/2" />
             <div className="relative max-w-[40ch]">
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-primary-foreground/60">
-                Starter · Free
+                30 free credits on signup
               </p>
               <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
                 開始轉錄你的第一支影片。
               </h2>
               <p className="mt-3 text-pretty text-primary-foreground/70">
-                每月 30 分鐘免費額度，無需信用卡。Start transcribing today.
+                註冊就送 30 點，1 點轉錄 1 分鐘影片，無需信用卡。用完再加購，沒有月費、不綁約。
               </p>
               <Link
                 href="/sign-in"

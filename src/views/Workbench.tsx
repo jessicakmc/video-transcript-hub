@@ -21,8 +21,6 @@ const HEAD = {
 
 type Profile = {
   display_name: string | null;
-  usage_minutes: number;
-  monthly_quota_minutes: number;
   credits_balance: number;
 };
 
@@ -59,7 +57,7 @@ export default function AppShell() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("display_name, usage_minutes, monthly_quota_minutes, credits_balance")
+        .select("display_name, credits_balance")
         .eq("id", user!.id)
         .maybeSingle();
       return data as Profile | null;
@@ -94,9 +92,6 @@ export default function AppShell() {
     queryClient.clear();
   }
 
-  const usagePct = profile
-    ? Math.min(100, Math.round((profile.usage_minutes / Math.max(1, profile.monthly_quota_minutes)) * 100))
-    : 0;
   const initials = (profile?.display_name ?? user?.email ?? "?")
     .slice(0, 2)
     .toUpperCase();
@@ -126,17 +121,16 @@ export default function AppShell() {
         <div className="mt-auto p-3">
           <div className="rounded-lg bg-chrome-deep/5 p-3 ring-1 ring-chrome-deep/10">
             <div className="flex items-center justify-between font-mono text-[11px] text-chrome-deep/60">
-              <span>Usage</span>
-              <span>
-                {profile?.usage_minutes ?? 0} / {profile?.monthly_quota_minutes ?? 30} min
-              </span>
+              <span>Credits</span>
+              <span>{profile?.credits_balance ?? 0}</span>
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink/5">
-              <span
-                className="block h-full rounded-full bg-gradient-to-r from-chrome to-chrome-deep"
-                style={{ width: `${usagePct}%` }}
-              />
-            </div>
+            <p className="mt-1 text-[11px] text-ink/45">1 credit = 1 minute of video</p>
+            <Link
+              href="/credits"
+              className="mt-2 inline-block font-mono text-[11px] text-chrome-deep transition-colors hover:underline"
+            >
+              加購 / Buy more →
+            </Link>
           </div>
         </div>
       </aside>
